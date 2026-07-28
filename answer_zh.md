@@ -3,7 +3,7 @@
 >
 > 标有"?"的内容未经确认，仅供排查参考。
 >
-> 文档链接：[github](https://github.com/mingzun09/Chunqiu-Detector-Problem-solution)
+> 文档链接：[github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
 
 # 自行尝试但仍然无法通过的检测
 > 请提交Issue并提供：检测项完整详情、系统版本、内核版本、Root管理器、模块列表、Xposed模块列表、是否使用改机/PIF/TEE模拟模块。
