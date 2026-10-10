@@ -1,7 +1,7 @@
 # Maple Detector Problem Solution (for version 1.3.0) — English
 
 > Compiled by: Maple | Last updated: 2026-10 | Verified version: 1.3.0 (total checks: Daily 114 / Game 131 / Ultra Daily 211 / Ultra Game 332)
-> Credits: [Credits list](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution) | For reference only; actual results vary with device / system / kernel environment.
+> Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
 

@@ -1,7 +1,7 @@
 # Maple检测项解决方案（跟进 1.3.0 版本）中文版
 
 > 整理：Maple ｜ 最后更新：2026-10 ｜ 核对版本：1.3.0（检测项总数：日常 114 / 游戏 131 / Ultra 日常 211 / Ultra 游戏 332）
-> 致谢名单 / Credits：[致谢清单](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution) ｜ 仅供参考，具体结果因设备/系统/内核环境而异。
+> 致谢名单 / Credits：[致谢清单](thanks.md) ｜ 仅供参考，具体结果因设备/系统/内核环境而异。
 > 标有「?」的内容未经确认，仅供排查参考。
 > 文档链接：[github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
 

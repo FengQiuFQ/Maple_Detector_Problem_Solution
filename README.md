@@ -50,6 +50,12 @@ You can branch and modify the warehouse and then pull the request, and I will ch
 | 残留 / 痕迹清理 | [Inode-Hijacker](https://github.com/YiJieqwq/Inode-Hijacker) ｜ [ADB-Trace-Cleaner](https://github.com/YiJieqwq/ADB-Trace-Cleaner) ｜ [FuseFixer](https://github.com/5ec1cff/FuseFixer) |
 | APatch / KernelPatch 隐藏 | [NoHello.kpm](https://t.me/welikeandroid) ｜ [SELinux_Hook.kpm](https://t.me/APatch_nightly) |
 
+## 致谢 / Credits
+
+Thanks to the community projects this document references (detection methodology, modules and tools): see [thanks.md](thanks.md).
+
+本文档参考的社区项目（检测思路、模块与工具）见此清单：[thanks.md](thanks.md)。
+
 ## 声明 / Disclaimer
 
 - 本文档与 Maple 检测器仅面向 **Android 技术爱好者**，用于**技术学习、环境研究与探讨**；**严禁**用于绕过应用反作弊、规避风控机制、游戏作弊等违法违规场景，后果自负。
