@@ -203,9 +203,7 @@ A module that operates on "package visibility": it intercepts the package query 
 <details><summary><b>Root privileges / SELinux modification detected (检测到Root权限/Selinux修改) (Daily basic)</b></summary>
 
 #### How it is detected
-
-Reads its own SELinux context inside the **app_zygote domain**, and uses sentinel contexts to build three control groups — positive control / negative control / file control — writes to `/sys/fs/selinux/access` through raw `selinuxfs`, and verifies the result the kernel writes back; at the same time it probes whether the `shell -> su` transition, the `magisk` / `ksu` / `apatch` domains, and reads of `ksu_file` / `lsposed_file` / `magisk_file` are still accepted by the live policy.
-
+Verifies its own security context during the app preload stage, and, using several groups of clearly designated samples, checks whether the policy view and the results written back by the kernel agree with each other; it also checks whether privileged domain transitions and policy flag reads are still accepted by the currently effective policy.
 #### How to fix it
 
 - **KernelSU / SukiSU**: update the manager and the kernel / LKM to the latest CI, enable "Hide SELinux modifications", re-patch and flash, then reboot.
@@ -225,11 +223,7 @@ It is **normal** for an ordinary app to be unable to read `/sys/fs/selinux/enfor
 <details><summary><b>KernelSU traits detected (检测到KernelSU特征)</b></summary>
 
 #### How it is detected
-
-During the application preload stage, several independent observations of this process's own runtime state are cross-checked against each other: whether different views agree under the same conditions, whether two parsing paths of the same input yield consistent results, whether the process baseline still keeps its parent-derived relationship, and whether the storage and policy views contradict each other. Any inconsistency counts as a hit.
-
-Each sub-criterion is independent, and only the ones that hit are listed. Anything that cannot be read is treated as **unknown**, never as "not found".
-
+During the application preload stage, this process's own runtime state is cross-checked: whether the observations obtained along the different read paths agree under the same conditions, whether the same input yields the same result through both parsing paths, whether the process baseline still keeps its parent-derived relationship, and whether the storage view and the policy view contradict each other. Any inconsistency counts as a hit; the sub-criteria are independent, and only the ones that hit are listed; anything that cannot be read is treated as **unknown**, never as “not found”.
 #### How to fix it
 
 - **Hide the app**: every observation above uses this app's own runtime state, so adding Maple to a hiding list (a hiding tool such as HMA) directly blocks the observation surface.
@@ -250,9 +244,7 @@ Same family as `KernelSU check / KernelSU native interface check / KernelSU acti
 <details><summary><b>KernelSU check (KernelSU检测) / KernelSU native interface check (KernelSU原生接口检测) / KernelSU active LKM (KernelSU活动LKM) / KernelSU kernel and SELinux markers (KernelSU内核与SELinux标记)</b></summary>
 
 #### How it is detected
-
-Reads KernelSU's version / feature interfaces, the `ksu_file` policy marker, active LKM and leftover kernel modules, and KernelSU-specific types in the SELinux policy, then cross-checks them against the manager package, the daemon process and the `/data/adb/ksu` structure.
-
+Cross-checks the version and feature information exposed by the custom implementation, the proprietary marker in the policy, and the active and leftover state of kernel modules against the manager app, the resident component and its data directory structure.
 #### How to fix it
 
 - Update the KSU manager to the latest CI and re-patch (LKM mode) or re-integrate (GKI / Non-GKI mode).
@@ -271,9 +263,7 @@ The manager app itself can be hidden by an app-hiding module; but the policy mar
 <details><summary><b>KernelSU jailbreak device / jailbreak mode (KernelSU免解设备/越狱模式) (composite; prominent in Game mode)</b></summary>
 
 #### How it is detected
-
-Aggregates KernelSU Late-load, active LKM, SELinux markers, persistent artifacts, Metamodule, the Magica transaction window and jailbreak capability components, and checks whether the manager signature and the Magica components exist at the same time.
-
+Checks a late-load mode's script environment, kernel module activity, policy markers, persistence artifacts, mount sources and boot-time transients for mutual consistency, and whether the manager and related components coexist.
 #### How to fix it
 
 - Jailbreak (unroot-free bootloader) mode is not recommended.
@@ -289,9 +279,7 @@ Same family as `KernelSU Late-load script environment (KernelSU Late-load脚本�
 <details><summary><b>KernelSU Late-load script environment (KernelSU Late-load脚本环境) / KernelSU jailbreak persistent artifacts (KernelSU越狱持久化工件) / KernelSU Metamodule mount (KernelSU Metamodule挂载) / Magica boot transaction window (Magica启动事务窗口) / Magica transient process (Magica瞬时进程)</b></summary>
 
 #### How it is detected
-
-On the native side it scans jailbreak script locations, `late-load` / `--magica` commands, persistent artifacts under `/data/adb`, Metamodule mounts whose source is KSU, and the transient combination of the Magica property window plus the 5555 endpoint.
-
+Checks whether a late-load mode's script environment, persistent artifacts and extension mount origins are consistent with that loading method, and whether the property source seen at the app preload stage and the communication endpoint appear at the same time.
 #### How to fix it
 
 Turn off Late-load / jailbreak mode, delete the corresponding leftovers and boot scripts under `/data/adb`, uninstall the Metamodule and the Magica components, restore the official kernel and boot image, then reboot.
@@ -309,9 +297,7 @@ The Magica-related items are **transient**: whether they hit depends on whether 
 <details><summary><b>su binary check (su二进制检测) / Running su process (运行中su进程) / Running Root / cheat process (运行中Root/外挂进程) / Root process check (Root进程检测) / Visible kernel cheat runtime state (可见内核外挂运行态)</b></summary>
 
 #### How it is detected
-
-Looks for su and similar binaries in common paths; for visible processes it cross-checks four identity views (comm / argv[0] / exe / status Name — at least two must agree before it counts as su), and combines that with whether `attr/current` falls in a Root domain, kernel task names, and cheat daemon characteristics.
-
+Checks whether su or similar binaries are present in common paths; for visible processes it cross-checks four views of process identity and requires at least two to agree before counting as su; it also takes in whether the security context belongs to a Root domain, kernel-backfilled task names and cheat daemon characteristics.
 #### How to fix it
 
 - Remove the su binaries you do not need, together with their execute permission (note that `/apex/com.android.virt/bin/su` on iQOO / vivo is a false-positive source — see Notes).
@@ -327,9 +313,7 @@ On Android 16 an ordinary app can only see processes of its own UID, so "no Root
 <details><summary><b>Hidden path visibility check (隐藏路径可见性检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-For read-only system paths of the su kind it performs three observations at once — `lstat`, `open` and parent-directory listing — and **any contradiction between them** is a hit: the metadata exists but opening returns "not found", or the metadata exists but the directory listing does not contain it. That is the typical signature of a path-hiding solution (PathMask / SusFS path hide).
-
+This item checks whether the metadata, the actual read result and the parent-directory enumeration of a read-only system path agree: if the metadata says the entry exists but opening reports it missing, or the path is absent from its parent directory listing, the three contradict each other, which shows the path is deliberately hidden.
 #### How to fix it
 
 - If it genuinely exists: uninstall the corresponding tool and clean up the leftovers.
@@ -344,9 +328,7 @@ Same family as `Three-way path existence cross-check (路径存在性三路核�
 <details><summary><b>SELinux status check (SELinux状态检测) / SELinux policy check (SELinux策略检测) / SELinux context check (SELinux上下文检测) / Policy serial check (Policy序列号检测) / SELinux dirty policy check (SELinux脏策略检测)</b></summary>
 
 #### How it is detected
-
-The SELinux filesystem state, the readability of the enforce and policy files, whether magisk / ksu / apatch / zygisk keywords and proprietary types remain in the policy, whether the current process has entered a Root domain, and whether the policy serial number has been replaced.
-
+Checks whether the filesystem state of the security context and the load and readability state of the policy view are self-consistent, and whether Root-tool signatures and proprietary types remain in the policy view; it also checks whether the current process lands in a Root domain and whether the policy serial number has been replaced.
 #### How to fix it
 
 - Restore SELinux Enforcing (uninstall the kernel module that sets SELinux to permissive).
@@ -362,9 +344,7 @@ The SELinux filesystem state, the readability of the enforce and policy files, w
 <details><summary><b>Kernel setresuid behavior probe (内核setresuid行为探针) / SusFS-related probe (SusFS相关探针)</b></summary>
 
 #### How it is detected
-
-Abnormal kernel behavior on sensitive paths such as `setresuid` (child process killed / unexpected permissions), plus SusFS UID hook behavior.
-
+In a child process, checks whether the kernel's actual behavior on permission-change sensitive paths is self-consistent with what the system reports: whether the child is terminated early and whether it obtains permissions it should not have.
 #### How to fix it
 
 Uninstall the SusFS / Root kernel module that modifies kernel behavior and restore the official kernel.
@@ -382,9 +362,7 @@ This item is strong evidence, but it depends on kernel implementation details an
 <details><summary><b>TEE key validity check (TEE密钥有效性检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Generates a one-off hardware key and **actually signs with it**, then verifies the signature with the leaf certificate of the certificate chain, checking the challenge binding, the certificate chain signature, the trusted root, and the key / attestation security level. As long as the device declares hardware key capability and key generation fails, the leaf certificate does not match the key, the chain cannot be parsed, the challenge is not bound, or the key falls back to a software implementation, it is a hit.
-
+Checks whether the device's declared hardware key capability is self-consistent with its certificate chain: whether the leaf certificate corresponds to the key, whether the chain resolves to a trusted root, whether this challenge is bound into it, and whether the declared security level matches. If the device declares hardware key capability but the key is unavailable, the leaf does not match the key, the chain cannot be parsed, the challenge is not bound, or the key is handled by software, it is a hit.
 #### How to fix it
 
 - Restore a normal TEE: restore the official firmware and the trusted boot chain, and make sure keystore2 / KeyMint are not intercepted.
@@ -404,9 +382,7 @@ The key / attestation state does not change within one boot; repeated scans in t
 <details><summary><b>Android Key Attestation availability (Android Key Attestation可用性) / Attestation chain structure consistency (Attestation链结构一致性) / Attestation chain root and implementation level (证明链根与实现级别) / Key binding and random challenge (密钥绑定与随机挑战)</b></summary>
 
 #### How it is detected
-
-Generates a key with a random challenge and parses the KeyDescription: chain length, chain signature, whether it is anchored to the official root, whether the public key matches the leaf certificate, whether the challenge is echoed back, and whether the attestation and key security levels are self-consistent.
-
+Generates a key with a random challenge and parses its description: whether the chain anchors to the official root, whether the public key matches the leaf certificate, whether the challenge is echoed back, and whether the attestation and key security levels are self-consistent.
 #### How to fix it
 
 Disable TrickyStore / TEE / KeyMint simulation or interception modules and restore the official Keystore / KeyMint and the trusted boot chain; if you use a keybox module, complete the target list, the security patch and the boot hash as described in "Configuring modules correctly".
@@ -420,9 +396,7 @@ Same family as `TEE key validity check (TEE密钥有效性检测)`, `TrickyStore
 <details><summary><b>TEE authorization tag cross-check (TEE授权标签对照) / TEE device identifier tag (TEE设备标识标签) / KeyUsage vs KeyPurpose consistency (KeyUsage与KeyPurpose一致性) / Signature algorithm vs issuer key consistency (签名算法与签发钥一致性) / KeyMint placeholder level inconsistency (KeyMint占位层级不一致) / KeyMint rollback resistance authorization (KeyMint回滚抵抗授权) / Attestation chain root and implementation level (证明链根与实现级别)</b></summary>
 
 #### How it is detected
-
-Runs several kinds of tag consistency validation on the attestation certificate chain: whether the leaf certificate's KeyUsage contradicts the KeyPurpose inside the extension, whether the leaf certificate's signature algorithm matches the issuer key algorithm, whether software-only tags appear in teeEnforced, whether vendor placeholder KeyMint tags can still be issued, whether the rollback resistance declaration is abnormal, and whether sensitive device identifier tags are not rejected.
-
+Checks several kinds of tag consistency across the attestation certificate chain: whether the leaf certificate's key usage contradicts the purpose in its extension, whether its signature algorithm matches the issuer's key algorithm, whether software-only tags appear on the hardware security level side, whether vendor-specific extension tags can still be issued, and whether the rollback resistance statement is abnormal.
 #### How to fix it
 
 Replace / update the keybox module, reboot and retest; if it still hits, the module implementation does not match the current system KeyMint version — try swapping [TEESimulator-RS](https://github.com/Enginex0/TEESimulator-RS) and [OhMyKeymint](https://github.com/qwq233/OhMyKeymint).
@@ -436,9 +410,7 @@ Some tag differences disappear naturally after a minor version update (the modul
 <details><summary><b>TEE RootOfTrust boot state (TEE RootOfTrust启动状态) / Bootloader state check (Bootloader状态检测) / OEM unlock check (OEM解锁检测) / Bootloader property scan (Bootloader属性扫描) / Abnormal boot state (启动状态异常)</b></summary>
 
 #### How it is detected
-
-Reads bootloader lock-state properties (`ro.boot.flash.locked`, `ro.boot.verifiedbootstate`, `ro.boot.vbmeta.device_state`, `ro.secureboot.lockstate`, etc.) and cross-checks them against RootOfTrust (deviceLocked / verifiedBootState) in the trusted attestation report.
-
+Checks the bootloader lock state: reads several boot-time state properties from the property source, some marking locked or unlocked, others whether boot is verified; then cross-checks them against the trusted attestation report's root-of-trust claims to see whether both describe the same device consistently.
 #### How to fix it
 
 - **Genuinely unlocked device**: use a keybox module to hide the unlock state from the detector and add Maple to the target list; or restore the complete official firmware and then relock.
@@ -454,9 +426,7 @@ Restoring factory firmware and relocking the bootloader is an **irreversible** o
 <details><summary><b>Attested security patch level (Attested安全补丁级别) / Vendor patch level cross-validation (Vendor补丁级别交叉验证) / Security patch cross-validation (安全补丁交叉验证) / Security patch age (安全补丁年限) / TEE key creation time (TEE密钥创建时间)</b></summary>
 
 #### How it is detected
-
-Cross-checks the OS / Vendor / Boot patch levels in the attestation certificate against the real runtime properties, and checks whether the security patch age and the key creation time are self-consistent.
-
+Checks whether the patch levels declared in the attestation certificate match the runtime properties, and whether patch age and key creation time are consistent.
 #### How to fix it
 
 - With a keybox module: write a patch date matching the system into `/data/adb/tricky_store/security_patch.txt`, or simply delete that file so the module takes the value automatically.
@@ -472,9 +442,7 @@ Same family as `Build integrity check (构建完整性检测)` and `Security pat
 <details><summary><b>Boot hash consistency (Boot哈希一致性)</b></summary>
 
 #### How it is detected
-
-Compares the boot / vbmeta hash (such as `ro.boot.vbmeta.digest`) with VerifiedBootHash in the attestation.
-
+Checks whether the digest of the device boot image and its boot verification data agrees with the boot verification digest in the system integrity attestation; a mismatch means the boot chain may have been altered.
 #### How to fix it
 
 Use the keybox module's add-on (TA) to configure the correct hash; on a genuinely unlocked device the hash often becomes all zeros, so you need to obtain the correct value from a trusted device and write it in.
@@ -488,9 +456,7 @@ The hash value changes with the vendor firmware version; do not reuse a value ac
 <details><summary><b>Attestation certificate revocation status (CRL) (Attestation证书吊销状态（CRL）)</b></summary>
 
 #### How it is detected
-
-Takes the serial number of the leaf certificate in the attestation chain and compares it with the **official Google attestation status list** (`android.googleapis.com/attestation/status`); a revoked certificate is a hit. Offline, on timeout or when the request is blocked the item is not shown, and a list that cannot be fetched is never treated as "not revoked".
-
+Checks the unique identifier of the last certificate in the attestation chain against the official attestation status list; a revoked certificate is a hit. When the list cannot be retrieved the item is not shown, and a failed retrieval is never counted as not revoked.
 #### How to fix it
 
 - Switch to a legitimate, non-revoked device attestation environment (keybox). Keyboxes circulating in public channels are very likely already on the revocation list.
@@ -506,9 +472,7 @@ Same family as `Proof chain root and implementation level (证明链根与实现
 <details><summary><b>Proof chain root and implementation level (AOSP key) (证明链根与实现级别（AOSP密钥）)</b></summary>
 
 #### How it is detected
-
-Checks whether the root of the attestation chain is the **AOSP test root / software attestation root** instead of a vendor or Google production root, cross-checked with whether the attestation security level is a software implementation. On non-GMS devices the attestation root is not a Google root to begin with, which is normal.
-
+Checks whether the root of the attestation chain is a test-purpose or non-production vendor root, and cross-checks it against the security level to see whether the attestation is a software implementation lacking hardware support. When a device is not an officially certified model, its attestation root is not a production vendor root to begin with, which is usually normal.
 #### How to fix it
 
 - Switch to a keybox module built on a production root and configure the keybox correctly, then reboot and retest.
@@ -524,9 +488,7 @@ This item often hits together with `TEE key validity check (TEE密钥有效性�
 <details><summary><b>Widevine device ID read (Widevine设备ID读取) / Widevine vs TEE cross-validation (Widevine与TEE交叉验证) / StrongBox capability declaration (StrongBox能力声明) / Knox Warranty check (Knox Warranty检测)</b></summary>
 
 #### How it is detected
-
-Reads MediaDrm's unique device ID, security level (L1 / L3) and SystemId, and cross-checks them against the TEE attestation result; it also checks whether the system declares StrongBox, and the Knox warranty bit on Samsung devices.
-
+Checks whether the device unique identifier, security level and system identity information declared by the device's cryptographic module are consistent with the facts reported by the hardware trust attestation, and whether the system declares a separate hardware security element.
 #### How to fix it
 
 - Restore the official DRM, TEE and complete firmware.
@@ -542,9 +504,7 @@ Widevine being L3 is not abnormal by itself; it is only judged when it contradic
 <details><summary><b>Untrusted TEE environment (Soter) (TEE环境不可信（Soter）)</b></summary>
 
 #### How it is detected
-
-Cross-checks whether the Tencent Soter service program exists and the state of its service properties.
-
+Cross-checks whether the declared third-party security service program actually exists, and whether its security context state is consistent with that.
 #### How to fix it
 
 Use SusFS / [LKM-PathMask](https://github.com/Andrea-lyz/LKM-PathMask) to hide the Soter-related service paths, and use an app-hiding module to hide `com.tencent.soter.soterserver` from Maple.
@@ -562,9 +522,7 @@ On most devices this item produces no verdict: it only hits when both the Soter 
 <details><summary><b>Root mount check (Root挂载检测) / Bind mount specific check (Bind Mount专项检测) / Overlay mount check (Overlay挂载检测) / Cacerts mount check (Cacerts挂载检测) / System partition RW check (系统分区RW检测) / Hidden bind mounts (隐藏Bind-Mounts) / Hidden system mounts (隐藏系统挂载)</b></summary>
 
 #### How it is detected
-
-Scans `mounts` / `mountinfo` for magisk / `/data/adb` / KernelSU / APatch sources, overlay and bind rewrites of system partitions, remounted certificate directories, whether the system partition is writable, and whether CPU / SoC identity files (`/proc/cpuinfo`, `/sys/devices/soc0/serial_number`) are individually over-mounted.
-
+Checks the mount view: whether its recorded mount sources relate to known injection frameworks, whether system partitions are rewritten or remounted, whether certificate directories are replace-mounted, and whether system partitions are writable although they should not be. The mount view should stay consistent with the storage view, property sources and other read paths. It also checks whether device identity sources are individually overridden by a separate mount entry instead of the normal system mount.
 #### How to fix it
 
 - Uninstall the module that creates the mount, restore the overwritten system files, then reboot and retest.
@@ -580,9 +538,7 @@ Ordinary OEM overlays, APEX, EROFS and dm devices are **not Root evidence by the
 <details><summary><b>Mount device consistency check (挂载设备一致性检测) / Mount ID consistency check (挂载ID一致性检测) / File descriptor mount visibility (文件描述符挂载可见性) / Mapped device visibility check (映射设备可见性检测) (the last three are new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Multiple observations of the same fact: ① whether the `st_dev` device number of a system path agrees with the mount record that overrides it; ② after opening a system path, whether the `mnt_id` in `/proc/self/fdinfo` agrees with the overriding record in the mount table; ③ whether the mount that a current process fd points to can be traced in the mount table (only judged when it "existed at boot and has now disappeared"); ④ whether the device number of a memory-mapped file can be traced in the mount table.
-
+Cross-checks the same fact through several read paths, asking only whether the storage view and the mount view stay consistent. ① whether the device identifier of a system path matches the mount record that overrides it; ② whether the mount identifier of the file instance behind that path matches the overriding entry; ③ whether the mount an open file points to can be traced in the mount records, judged only when it "existed at boot and has now disappeared"; ④ whether the device identifier of a memory-mapped file can be traced.
 #### How to fix it
 
 - A contradiction means a mount was hidden / unmounted inconsistently: disable mount hiding (SusFS / PathMask / the metamodule's mount-hiding feature), then reboot.
@@ -597,9 +553,7 @@ APEX itself is mounted from loop devices, the device number of an overlay-covere
 <details><summary><b>Mount table drift check (挂载表漂移检测) / Runtime mount changes (运行时挂载变化) / Mount namespace drift check (挂载命名空间漂移检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Whether the mount table and the mount namespace change during runtime: the **mount table** is checked for added / disappeared / attribute-changed entries, and the **namespace** for `/proc/self/ns/mnt` being swapped (being moved into another mount namespace while the app runs is a typical mount-hiding trick). Mount ID gaps are for reference only and are not judged on their own.
-
+Whether the mount table and the mount namespace change during runtime: mount entries are checked for additions, disappearances and attribute changes, and the namespace for being swapped while the app runs, a typical mount-hiding trick. A single count alone is not treated as a finding.
 #### How to fix it
 
 Runtime mount changes usually mean "a module remounted / unmounted while the app was running": move the module's mount timing to early boot (`post-fs-data`), or use the "restore mounts only" policy; if the system itself is mounting things during boot (such as external storage or screen casting), wait 20 seconds to 5 minutes after boot before testing.
@@ -613,9 +567,7 @@ Same family as `Mount device consistency check (挂载设备一致性检测)` an
 <details><summary><b>Magic Mount / Mount loophole / Mount namespace (Mount命名空间) / PID namespace nesting (PID命名空间嵌套) / User namespace mapping (用户命名空间映射) / Root directory redirection (根目录重定向)</b></summary>
 
 #### How it is detected
-
-Traces of a module's magic mount on the system partition, the `/proc/self/ns/*`, `NSpid` / `uid_map` views, and whether `/proc/self/root` has been redirected, to determine whether the process has been chrooted / containerized.
-
+Checks the mount traces on the system partition, the process's own namespace and identity mapping views, and whether its root directory has been redirected, and whether these agree with a normal process baseline.
 #### How to fix it
 
 - Use the Zygisk provider module's "restore mounts only", or switch metamodule.
@@ -634,9 +586,7 @@ On most devices the `mount_namespace` item only provides information and does no
 <details><summary><b>Frida check (Frida检测) / Frida file check (Frida文件检测) / Frida process check (Frida进程检测) / Frida port scan (Frida端口扫描) / Active probing of Frida candidate ports (Frida候选端口主动探测) / Frida-compatible protocol probe (Frida兼容协议探针)</b></summary>
 
 #### How it is detected
-
-File and process names, thread names, frida-agent / gadget in maps, sockets and listening endpoints, and active loopback connections plus D-Bus compatible protocol responses.
-
+Checks whether the file and process names observed on the device are consistent with what the memory mappings record, and whether the network listening endpoints and the actively initiated loopback connections point to the same service whose responses match the protocol it declares.
 #### How to fix it
 
 Stop `frida-server`, remove the gadget and the injection scripts, cancel injection into Maple, then reboot.
@@ -650,9 +600,7 @@ A resident `frida-server` triggers several items at once; if only a debug port i
 <details><summary><b>Xposed / LSPosed check (Xposed/LSPosed检测) / Xposed class loading check (Xposed Class加载检测) / XposedBridge field check (XposedBridge字段检测) / LSPosed class loading check (LSPosed Class加载检测) / LSPosed scope check (LSPosed作用域检测) / LSPosed data directory (LSPosed数据目录) / LSPosed runtime leftovers (LSPosed运行时残留) / OAT / ODEX artifact check (OAT/ODEX工件检测) / Xposed module metadata scan (Xposed模块元数据扫描)</b></summary>
 
 #### How it is detected
-
-Xposed classes and fields, call stacks, ClassLoader chains, the metadata of installed modules (`META-INF/xposed`), the LSPosed data directory and fd / maps leftovers, compile artifacts (OAT / ODEX) and runtime mappings.
-
+Checks for injection-framework characteristics: whether framework-specific injected classes and data fields are present, whether the call stack still carries the framework's call chain, and whether the loader relationships exposed during the preload stage and the metadata of installed modules point to the same framework. It then checks whether references to the module mechanism remain in the process space, and whether the process baseline, the program mapping table and the storage view agree.
 #### How to fix it
 
 - Remove Maple from the LSPosed / Xposed scope, disable the related modules and reboot.
@@ -668,9 +616,7 @@ Same family as `Framework method localization (框架方法本地化)`, `Own met
 <details><summary><b>Zygisk / Riru check (Zygisk/Riru检测) / Zygisk environment check (Zygisk环境检测) / Zygisk module injection check (Zygisk模块注入检测) / Zygisk thread check (Zygisk线程检测) / Zygisk process check (Zygisk进程检测) / Zygisk daemon (Zygisk守护进程) / Zygisk namespace check (Zygisk Namespace检测) / Zygisk SELinux context (Zygisk SELinux上下文)</b></summary>
 
 #### How it is detected
-
-Environment variables, `magisk.process`, module paths in maps, thread names, SO files in restricted paths, TracerPid, daemons, and namespace and SELinux context anomalies.
-
+Checks environment variables, module entries in process names and paths, thread names, libraries in restricted paths, trace state, resident daemons, and namespace and security contexts, seeing whether each stays consistent with the process baseline and the mount view.
 #### How to fix it
 
 Turn off Zygisk / Riru or remove Maple from the scope, disable the corresponding modules and reboot; or upgrade [Zygisk-Next](https://github.com/Dr-TSNG/ZygiskNext) to the latest version.
@@ -680,9 +626,7 @@ Turn off Zygisk / Riru or remove Maple from the scope, disable the corresponding
 <details><summary><b>Substrate check (Substrate检测) / ShadowHook / Dobby check (ShadowHook/Dobby检测) / Hook library enumeration check (Hook库枚举检测) / Inline hook check (Inline Hook检测) / SMAPS inline hook check (SMAPS内联钩子检测) / Hook callback check (Hook回调检测) / ECA H3</b></summary>
 
 #### How it is detected
-
-Hook library / class names, maps and `dl_iterate_phdr`, rewritten function prologues (inline hook opcode comparison), and executable anonymous segments and callback table anomalies in smaps.
-
+Checks whether the loaded-image list agrees with the process memory view and two independent read paths agree, whether function entry bytes have been altered, and whether the memory view shows unexpected executable regions or callback pointers.
 #### How to fix it
 
 Disable the hook modules that apply to Maple (SandHook / Dobby / ShadowHook / Pine / YAHFA, etc.), then reboot and retest.
@@ -696,9 +640,7 @@ Unrelated in category to `Native injection image attribution (Native注入映像
 <details><summary><b>Native injection image attribution (Native注入映像归因) / Anonymous executable code check (匿名执行代码检测) / Anonymous RWX segment check (匿名RWX段检测) / Memory injection conclusion (内存注入结论) / Memfd / JIT check (Memfd/JIT检测) / Deleted mapping check (Deleted映射检测) / ART JIT deleted memfd / Isolated process ART diff (隔离进程ART差分) / ART code page disk verification (ART代码页磁盘校验) / Critical native code page integrity (关键Native代码页完整性)</b></summary>
 
 #### How it is detected
-
-Cross-references named / hidden ELF files in maps, JNI table hooks, executable anonymous segments that are not JIT, suspicious memfds and on-disk code pages; the ART runtime views of the main process and of the isolated process are diffed against each other.
-
+Checks whether named and hidden code modules in the memory mapping view, the function pointer tables registered during the preload stage, executable anonymous segments not produced by just-in-time compilation, and suspicious memory file descriptors each correspond to on-disk code pages. It also checks whether the runtime views of the main process and the isolated process agree under the same process baseline; any divergence is anomalous.
 #### How to fix it
 
 - Stop all injection, hook, speed-hacking and debugging modules targeting Maple, then reboot and retest.
@@ -713,9 +655,7 @@ Ordinary JIT caches (`/memfd:jit-cache`) and `(deleted)` APK mappings are normal
 <details><summary><b>Signal handler integrity (信号处理器完整性) / Game signal handler integrity (游戏信号处理器完整性) / Exception handler attribution (异常处理器归属) / Anti-debug / signal check (反调试/信号检测) / Debugger check (调试器检测) / Java debugger state (Java调试器状态) / TracerPid check (TracerPid检测)</b></summary>
 
 #### How it is detected
-
-Whether the handlers of key signals (SIGTRAP / SIGSEGV, etc.) point to anonymous executable regions or injected modules, whether the uncaught exception handler has been replaced, and `TracerPid` plus the debugger connection state.
-
+Checks whether the entry points for key signals land in anonymous executable regions or injected modules, whether the uncaught exception handler has been replaced, and whether the process baseline agrees with the debugger connection state.
 #### How to fix it
 
 Exit the debugger (Android Studio / LLDB / ptrace / Frida) and the crash-interception and hook modules, then reboot.
@@ -729,9 +669,7 @@ Maple itself deliberately raises one exception to verify whether the exception h
 <details><summary><b>Three-way path existence cross-check (路径存在性三路核对) / Mutually exclusive path evidence (路径证据互斥) / Java vs native path view divergence (Java与Native路径视图分歧) / Two-way proc read cross-check (proc读取双路核对)</b></summary>
 
 #### How it is detected
-
-For paths sensitive to Root frameworks it collects evidence with three independent kernel observations (statx / openat / directory entry traversal) and adds the Java-layer view on top; if one path says it exists and another one definitely says it does not exist, that is a contradiction. `Two-way proc read cross-check (proc读取双路核对)` compares the results of reading the same `/proc` file through libc and through a direct syscall.
-
+For the paths that Root frameworks typically modify, it checks whether the evidence from several independent kernel read paths agrees, and compares that with the application-layer view; if one read path shows the path exists while another clearly shows it does not, that counts as a contradiction. For reads of the same runtime file, it checks whether the content returned by several read paths agrees.
 #### How to fix it
 
 - Genuine path: uninstall the corresponding tool and clean up the leftovers.
@@ -746,9 +684,7 @@ Belongs, together with `Hidden path visibility check (隐藏路径可见性检�
 <details><summary><b>Binder call path consistency (Binder调用路径一致性)</b></summary>
 
 #### How it is detected
-
-Compares whether the Binder protocol version obtained through libc and through a direct syscall diverges consistently and stably (a leftover PLT hook).
-
+Checks whether the protocol version obtained through multiple read paths diverges consistently and stably.
 #### How to fix it
 
 Disable Binder interception, ioctl hooks and service-proxy modules for Keystore / TEE, restore the official services, then reboot.
@@ -758,9 +694,7 @@ Disable Binder interception, ioctl hooks and service-proxy modules for Keystore 
 <details><summary><b>Runtime environment variables (运行时环境变量) / Dynamic library path check (动态库路径检测) / Dynamic linker check (动态链接器检测) / Environment variable markers (环境变量标记) / Linker symbol check (Linker符号检测) / Linker bridge symbols (Linker桥接符号)</b></summary>
 
 #### How it is detected
-
-Whether `LD_PRELOAD`, `LD_LIBRARY_PATH`, `CLASSPATH`, `PATH` and `TMPDIR` contain Root / hook injection paths, and whether the linker namespace and the bridge symbols are abnormal.
-
+Checks whether the values of the environment variables visible during the preload stage contain paths pointing to Root or hook injection directories, and whether those variables are consistent with the bridging symbols of the dynamic linker namespaces.
 #### How to fix it
 
 Remove the injection launcher, terminal wrapper scripts and environment-variable-modifying modules, and launch Maple normally from the system launcher.
@@ -770,9 +704,7 @@ Remove the injection launcher, terminal wrapper scripts and environment-variable
 <details><summary><b>App signature self-check (应用签名自校验) / App debuggable flag (应用可调试标志) / App install source (应用安装来源) / APK install path verification (APK安装路径核对) / Own APK mapping consistency (自身APK映射一致性) / Own native library origin (自身native库来源) / Host executable (宿主可执行文件)</b></summary>
 
 #### How it is detected
-
-Multiple-signer detection, `FLAG_DEBUGGABLE`, install source (installer), whether the mapping paths of the APK and of its own so files fall in system-allowed locations, and whether the host executable is the system `app_process`.
-
+Checks whether the app's signer count, debug flag and install source all match a normal distribution channel, and whether the APK and its own libraries are mapped from system-default locations by the system-provided host process.
 #### How to fix it
 
 - Uninstall the modified build and install the official Release APK from a trusted source.
@@ -792,9 +724,7 @@ This item only shows a single-signature digest for manual verification; it perfo
 <details><summary><b>Risky app check (风险应用检测) / Hiding tool check (隐藏工具检测) / Root manager check (Root管理器检测) / Hook framework app check (Hook框架应用检测) / Virtual framework check (虚拟框架检测) / Third-party environment tools (三方环境工具) / Hidden manager check (隐藏Manager检测)</b></summary>
 
 #### How it is detected
-
-Reads all installed packages (with versions) and matches them exactly against the built-in lists of risky apps / hiding tools / root managers / hook frameworks / virtual frameworks / tools (see the appendix for the lists).
-
+Checks whether the inventory of installed applications is complete and its versions match the machine's actual state, then matches it item by item against the built-in reference lists for risky apps, hiding tools, root managers and hook frameworks. An app missing from the results, or a version that disagrees with the record, means the two are not self-consistent.
 #### How to fix it
 
 - Keep only the tools you really need and uninstall the rest.
@@ -810,9 +740,7 @@ Same family as `System component visibility cross-check (系统组件可见性�
 <details><summary><b>System component visibility cross-check (系统组件可见性交叉) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Takes the current IME (`Settings.Secure`'s default_input_method) and the packages of all enabled accessibility services, and cross-checks them against PackageManager query results: the system thinks it is in use / enabled **but the package query cannot see it** — that is a hit.
-
+Checks whether the current input method and the apps behind enabled accessibility services, as recorded in system settings, agree with what the package list can actually find: if the record says an app is in use or enabled but the package list cannot find it, that is a hit.
 #### How to fix it
 
 In the app-hiding module, cancel the hiding of the "IME / accessibility services" presets, or remove Maple from the hiding scope, then reboot.
@@ -826,9 +754,7 @@ This is the most direct symptom of an app-hiding module configured too broadly; 
 <details><summary><b>Two-way package visibility cross-check (包可见性双路核对) / PM cross-method check (PM交叉方法检测)</b></summary>
 
 #### How it is detected
-
-Whether different query paths — `getInstalledPackages`, `getPackageInfo`, `createPackageContext`, etc. — return consistent results for a known root manager package.
-
+For a known root manager package, checks whether the results returned by multiple read paths are consistent with one another.
 #### How to fix it
 
 Disable HMA, package list filtering, virtual containers and PackageManager hooks, then reboot; if all paths agree, use the details to decide whether to uninstall.
@@ -838,9 +764,7 @@ Disable HMA, package list filtering, virtual containers and PackageManager hooks
 <details><summary><b>Accessibility service check (无障碍服务检测) / Developer options check (开发者选项检测) / ADB debugging check (ADB调试检测) / Active ADB endpoint probing (ADB端点主动探测)</b></summary>
 
 #### How it is detected
-
-The number of enabled accessibility services and automation keywords (autojs / autox / script / auto-clicker / macro), the developer options and USB debugging switches, ADB over WiFi, and whether the loopback 5037 / 5555 endpoints are connectable.
-
+Checks whether the number of enabled accessibility services clearly exceeds normal needs and whether any entry carries an automation or script characteristic, and whether developer options and USB debugging are on, whether wireless debugging is enabled, and whether the on-device debugging channel is still reachable from outside.
 #### How to fix it
 
 - Turn off the automation / auto-clicker / script tool services in the system accessibility settings.
@@ -856,9 +780,7 @@ USB debugging / developer options are **user configuration** signals, labeled se
 <details><summary><b>Temp directory permission check (临时目录权限检测) / Temp directory inode check (临时目录inode检测) / Temp directory ownership check (临时目录归属检测) / Temp directory timestamp check (临时目录时间戳检测)</b></summary>
 
 #### How it is detected
-
-The permissions of `/data/local/tmp` (default 0771), whether the inode is abnormally high (threshold 10000), whether the owner / group is shell(2000), and whether the modification time is later than the current time or the status change time is clearly later than the modification time.
-
+The shared temp directory: loosened permissions, a high inode number, the original low-privilege owner and group, and a modification time later than now or a status change time later than modification.
 #### How to fix it
 
 - Permissions: `su -c chmod 771 /data/local/tmp`
@@ -875,9 +797,7 @@ The permissions of `/data/local/tmp` (default 0771), whether the inode is abnorm
 <details><summary><b>Cheat / Root tool path list (外挂/Root工具路径清单) / Abnormal files (异常文件) / MT Manager (MT2 folder) / abnormal files (Mt管理器（MT2文件夹）/异常文件) / Other leftovers check (其他残留检测) / Root leftovers check (Root残留检测) / Root leftovers (extended) (Root残留(扩展)) / Data leftovers (数据残留)</b></summary>
 
 #### How it is detected
-
-Runs `lstat` on every entry of the built-in high-risk path list (see the appendix), and lists the concrete paths that hit.
-
+Checks every entry in the built-in high-risk path list, judging by that entry's own attributes in the storage view without following redirects elsewhere; the result lists the concrete entries only.
 #### How to fix it
 
 Confirm each **concrete path** given in the details and delete the leftovers you no longer need; for the MT2 folder you can change the path in MT Manager's settings and then delete the old directory.
@@ -891,9 +811,7 @@ Same family as `Fast scan for abnormal sh files (异常sh文件快速扫描)`, `
 <details><summary><b>Fast scan for abnormal sh files (异常sh文件快速扫描) / Fast scan of external storage scripts (外置存储脚本快速扫描) / Zero-width disk scan app check (零宽扫盘应用检测) / Blacklisted package name directory check (黑名单包名目录检测) / Blacklisted directory hidden app check (黑名单目录隐藏应用检测)</b></summary>
 
 #### How it is detected
-
-Within the shared storage the app can access, it performs a bounded scan (depth 4, 256 directories, 4000 entries, 1.5 seconds) for `.sh` scripts, blacklisted package name directories and hidden app directories.
-
+Scans app-accessible shared storage, checking whether the script files, blacklisted app directories and hidden app directories it finds match the apps installed on the device.
 #### How to fix it
 
 Check the concrete paths in the details and delete the scripts and directories you have confirmed you no longer need; anomalies in directories such as `/storage/emulated/0/Android/data/<package name>` usually come from leftovers of cheat / app-cloning tools.
@@ -907,9 +825,7 @@ The `.sh` extension does not by itself prove malicious behavior; a hit only mean
 <details><summary><b>System image residue check (系统镜像残留检测) — Ultra</b></summary>
 
 #### How it is detected
-
-Bounded scan inside the shared storage the app can reach for boot images and flash backups such as `boot.img` / `init_boot.img` / `vbmeta.img`, plus abnormal `.xml` files in the root of shared storage (Ultra-mode item).
-
+Within the shared storage the app can reach, checks whether startup images and flash backups appear there, files an ordinary app should not hold. Ultra mode additionally checks configuration files in the root of shared storage, whether their content and naming match the actual device state.
 #### How to fix it
 
 Confirm the source from the paths listed in the details and delete them; such images usually come from flashing / patching boot, and abnormal `.xml` files are usually configuration written by modding modules. Keeping them in shared storage also triggers the "modding tool residue" items.
@@ -923,9 +839,7 @@ A hit only means "boot image files exist in shared storage" — it does not mean
 <details><summary><b>Abnormal system executable files (系统异常可执行文件) / Scheduler / thermal module check (调度/温控模块检测) / Kernel cheat driver check (内核外挂驱动检测) / Kernel module check (内核模块检测) / Kernel module leftovers (内核模块残留)</b></summary>
 
 #### How it is detected
-
-Unusual system executables such as `/system/bin/adb` and `/system/bin/fastboot`; scheduler / thermal module signatures such as `/dev/cpuset/AppOpt`, `/data/encore/*`, `encore_profiler`, `yshell`; loaded kernel modules and cheat driver names.
-
+Checks whether executables that do not belong to the usual set appear in system-preloaded locations. Checks whether the configuration sources of scheduler- and thermal-related components agree with their runtime traces, and whether load entries outside the official configuration exist. Checks the loaded kernel module list and its driver origins against the system baseline.
 #### How to fix it
 
 Uninstall the corresponding scheduler / thermal / cheat modules and restore the official system partition files; vendor-modified builds commonly include `adb`/`fastboot` — flash back the official build, or use [LKM-PathMask](https://github.com/Andrea-lyz/LKM-PathMask) to hide them.
@@ -939,9 +853,7 @@ It is normal that `/proc/modules` is not readable (an ordinary app has no permis
 <details><summary><b>Terminal environment trace check (终端环境痕迹检测) / PTY node ownership (PTY节点归属) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Reads the owner and the SELinux label of `/dev/pts/*`; if Root framework labels such as `ksu_file` / `magisk_file` / `apatch_file` appear, it is a hit (an unreadable label is only recorded as unknown).
-
+Compares a terminal device node's owner and security context against Root framework traits; a trait counts as a hit, and an unreadable context gives no conclusion.
 #### How to fix it
 
 Close resident Root terminal / debug sessions, stop interactive shells opened in a Root domain, then reboot.
@@ -955,9 +867,7 @@ Ordinary terminals (including Maple's own pty) do not hit; only labels that fall
 <details><summary><b>Process cgroup context (进程Cgroup上下文) / Suspicious detection runtime environment (检测运行环境可疑) / Container (容器) / App cloning (多开) / Process identity quadruple (进程身份四元组) / Data directory ownership consistency (数据目录归属一致性)</b></summary>
 
 #### How it is detected
-
-Whether `/proc/self/cgroup` contains magisk / zygisk / ksu / apatch / lsposed / frida markers; whether the `Uid` / `Gid` quadruple is fully equal; whether `dataDir` / `sourceDir` match the locations required by the system; and whether the process is in a nested namespace.
-
+Checks whether the process isolation context carries markers of common injection frameworks, whether the process identity credentials agree, whether the app's data and installation directories sit where the system requires, and whether the process runs in a nested namespace.
 #### How to fix it
 
 Exit the app clone / cloud phone / virtual container, uninstall the current copy and reinstall the official APK from a trusted source.
@@ -971,9 +881,7 @@ Same family as `PID namespace nesting (PID命名空间嵌套)`, `User namespace 
 <details><summary><b>Vold isolation property check (Vold隔离属性检测) / Log buffer property check (日志缓冲区属性检测) / Core platform API policy check (核心平台API策略检测) / Hiding solution property check (隐藏方案属性检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Reads `persist.sys.vold_app_data_isolation_enabled`, `persist.logd.size*` (non-empty is a hit), `persist.debug.dalvik.vm.core_platform_api_policy`, and the properties of path-hiding solutions aimed at detectors.
-
+Checks four persisted settings: the app data isolation switch, the log capacity parameter, and two switches under runtime debug policy, confirming they stay consistent with the system property sources and the storage view, and whether those switches still hold a value.
 #### How to fix it
 
 - Vold isolation: turn off "Vold app data isolation" in HMA / the app-hiding module; if it remains, run `resetprop -p --delete persist.sys.vold_app_data_isolation_enabled` and reboot.
@@ -993,9 +901,7 @@ A `persist.logd.size*` property that exists with an empty value is normal.
 <details><summary><b>Emulator property check (模拟器属性检测) / Emulator path check (模拟器路径检测) / GPU emulation check (GPU模拟检测) / CPU emulator signatures (CPU模拟器特征) / Virtual framework check (虚拟框架检测)</b></summary>
 
 #### How it is detected
-
-Runtime evidence of QEMU / goldfish / ranchu / VirtualBox / VMware / Genymotion / Nox / LDPlayer (device nodes, properties, drivers, process names), combined with reference surfaces such as battery / charging and SIM state.
-
+Checks whether the device carries runtime traces of known emulation or virtualization runtimes, and cross-checks them against reference surfaces such as battery, charging and SIM state.
 #### How to fix it
 
 - Real device: disable hardware spoofing and cloud-phone / container modules, and restore the official properties, kernel and drivers.
@@ -1010,9 +916,7 @@ Testing with no SIM card inserted while the battery is full and charging can pro
 <details><summary><b>Build fingerprint integrity check (构建指纹完整性检测) (new in 1.3.0) / Partition fingerprint consistency check (分区指纹一致性检测) / Fingerprint cross-validation (Fingerprint交叉验证) / Fingerprint component consistency check (Fingerprint分量一致性检测) / Fingerprint component cross-validation (Fingerprint分量交叉验证)</b></summary>
 
 #### How it is detected
-
-① The build fingerprint must satisfy the standard segmented structure (`brand/product/device:release/id/incremental:type/tags`); ② between partition fingerprints only the **build posture segments** are compared (release / id / incremental / type / tags) — the brand and codename segments do not participate; ③ within the same partition the fingerprint components are cross-checked against independent properties.
-
+The build identifier must follow the standard segmented structure; across partitions only the build posture segments are checked for consistency, while the brand and codename segments take no part; within one partition, identifier components from one source are cross-checked against independent property sources from another.
 #### How to fix it
 
 - Uninstall device-spoofing / PIF / property-spoofing modules, restore the official properties, then reboot.
@@ -1027,9 +931,7 @@ On Xiaomi models the vendor segment is fixed to a generic base such as `mivendor
 <details><summary><b>Device model spoofing check (机型伪装检测) / Jailbreak model Prop cross-check (免解机型Prop交叉检测) / OemPropertyConsistency / Property consistency check (属性一致性检查) / Property context directory enumeration (属性上下文目录枚举)</b></summary>
 
 #### How it is detected
-
-Whether vendor-specific properties and device identifiers on OPPO / vivo and similar devices are self-consistent (missing when they should be present / present when they should not be), whether key properties are empty or come from an abnormal source, and whether property context directories have been mounted additionally.
-
+Checks whether vendor-specific properties and device identifiers are self-consistent: whether the values that should be present do exist, and whether values that should not appear do appear instead; it also checks whether key properties are empty and whether their values come from an abnormal source.
 #### How to fix it
 
 Remove property-filtering and device-spoofing modules and restore the real properties; if a third-party ROM is missing properties itself, you can only wait for the ROM maintainer to fix it or flash back to the official system.
@@ -1039,9 +941,7 @@ Remove property-filtering and device-spoofing modules and restore the real prope
 <details><summary><b>Eight device property dual-source cross-check (8项设备属性双源核对) / Build.TAGS cross-check (Build.TAGS交叉) / Security patch cross-validation (安全补丁交叉验证) / Build integrity check (构建完整性检测) / Boot parameter raw value cross-validation (启动参数原始值交叉验证) / Kernel boot security context (内核启动安全上下文)</b></summary>
 
 #### How it is detected
-
-Whether the results of reading the same property from four sources — Java / Build constants / `getprop` / the native property area — agree; whether `cmdline` / `bootconfig` agree with `ro.boot.*`, and whether they contain unlock, permissive, verity-disabled, `/data/adb`, KernelSU / APatch / SUSFS markers.
-
+The same property is read from four mutually independent sources — check whether their readings agree. Then check whether boot parameters match what the system declares about its boot state, and whether they expose unlock, permissive policy, disabled verification, or custom directories and injection-framework traces.
 #### How to fix it
 
 Disable device-spoofing / PIF / resetprop modules, restore the official properties and boot partitions, then reboot.
@@ -1055,9 +955,7 @@ Same family as `Play Integrity Fix leftovers (Play Integrity Fix残留)` and `Pr
 <details><summary><b>Play Integrity Fix leftovers (Play Integrity Fix残留)</b></summary>
 
 #### How it is detected
-
-The native layer reads the properties of enabled PIF / PIHooks / PixelProps / property-spoofing solutions (`persist.sys.pihooks*`, `persist.sys.pixelprops*`, `persist.sys.spoof.gms`, etc.).
-
+During the preload stage, checks whether the property sources carry enablement markers of a spoofing-type solution, and compares those property values against the device's actual properties.
 #### How to fix it
 
 Disable and uninstall the corresponding modules, clean up their actual leftovers (including `system.prop` and `service.d` scripts), then reboot.
@@ -1067,9 +965,7 @@ Disable and uninstall the corresponding modules, clean up their actual leftovers
 <details><summary><b>Property area context check (属性区上下文检测) (new in 1.3.0) / Property area readability cross-check (属性区可读性核对)</b></summary>
 
 #### How it is detected
-
-Enumerates property area context names from the process's own mappings; a hit on spoofing / hiding markers (spoof / pif / pixelprop / hide / ksu / magisk / apatch / lsposed / xposed / tricky, etc.) counts as a hit; it also checks whether the property area files are readable and whether the serial number and the info files are self-consistent.
-
+Enumerates the context names of the property source visible at the preload stage; any match with known spoofing or hiding markers counts as a hit, and it also checks whether that property source is readable and whether the serial number and the info records stay self-consistent.
 #### How to fix it
 
 Uninstall the module that created the custom property area (such contexts are usually written by property-spoofing modules), then reboot.
@@ -1083,9 +979,7 @@ Normal contexts that exist on factory devices, such as `vendor_socket_hook_prop`
 <details><summary><b>Custom ROM check (自定义ROM检测) / Kernel version check (内核版本检测) / Kernel build signature check (内核构建特征检测) / Third-party kernel (三方内核)</b></summary>
 
 #### How it is detected
-
-Matches system / device model features against the built-in third-party ROM and kernel keywords (LineageOS, the `-dirty` suffix of self-compiled kernels, third-party kernel names, etc.).
-
+Checks whether the system and device model features are consistent with the built-in third-party ROM and kernel keywords.
 #### How to fix it
 
 - Restore the official ROM and kernel; or use a kernel-level solution such as SUSFS to hide the kernel name (note that such hiding can itself trigger other items).
@@ -1104,9 +998,7 @@ A third-party ROM's own characteristics cannot be fully eliminated with modules;
 <details><summary><b>Netlink query policy check (Netlink查询策略检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Issues one query to the kernel's `sock_diag` as an ordinary app: under a normal policy it should be rejected; if a response comes back (especially **socket records of other UIDs**), the kernel netlink query policy has been relaxed.
-
+Checked as an ordinary app: when this app asks the kernel for network connection information, does the kernel deny it under the policy view; if a response comes back containing other apps' connection records, the kernel's query policy has been relaxed.
 #### How to fix it
 
 Restore the official kernel / SELinux policy; if some hiding solution opened up this interface, disable it and reboot.
@@ -1120,9 +1012,7 @@ A factory system rejects this query from an ordinary app anyway, so "rejected" i
 <details><summary><b>Process protection view consistency (进程防护视图一致性) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Cross-checks three paths: Seccomp / NoNewPrivs from `/proc/self/status`, a direct `prctl` query, and a libc read; if any two disagree it is a hit (typically `/proc` reads or syscalls are being intercepted).
-
+During the preload stage, several read paths are cross-checked to confirm the process's own sandbox and privilege-escalation restrictions agree: one from the status view, one from the policy view, and one from the property source. All three must match exactly; any disagreement between two is a hit.
 #### How to fix it
 
 Disable `/proc` filtering, file API hooks and hiding modules targeting Maple, then reboot.
@@ -1136,9 +1026,7 @@ Belongs, together with `Two-way proc read cross-check (proc读取双路核对)` 
 <details><summary><b>Zygote supplementary GID check (Zygote补充GID检测) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Checks whether the process's supplementary GIDs still contain the **app-specific groups** (`20000+appId`, `50000+appId`) — an inevitable feature of processes forked from Zygote; if they are missing, the supplementary groups have been restricted (common with "restrict zygote privileges" style hiding configurations).
-
+Checks whether the process's supplementary group list still carries the app-specific groups — the normal signature of a process forked during the preload stage; if missing, the supplementary group identity has been narrowed or rewritten, so look into restrict-preload-privileges style hiding configurations.
 #### How to fix it
 
 In the app-hiding module, turn off the "restrict zygote privileges / SHARED USER GID / APP ZYGOTE GID" style switches for Maple, then reboot.
@@ -1152,9 +1040,7 @@ On Android 14+ an app does not have GID 3009 (readproc) anyway, which is normal.
 <details><summary><b>OBB path view consistency (OBB路径视图一致性) (new in 1.3.0)</b></summary>
 
 #### How it is detected
-
-Reads the app's own OBB path in four ways — "does the file exist", `stat`, `lstat` and parent directory listing — and any contradiction between the results is a hit (it means a module is intercepting reads of that path).
-
+For the app's own OBB storage location, uses multiple read paths to cross-check whether it exists and whether its own recorded attributes agree with the entries the parent directory listing shows; a contradiction between any of these is a hit.
 #### How to fix it
 
 Disable hiding modules aimed at scanning / file reads; if necessary, turn off path interception policies other than "restrict zygote privileges" for Maple.
@@ -1164,9 +1050,7 @@ Disable hiding modules aimed at scanning / file reads; if necessary, turn off pa
 <details><summary><b>Clock source consistency (时钟源一致性) / Kernel clock cross-validation (内核时钟交叉验证) / Boot time consistency (开机时刻一致性) / Process start time consistency (进程启动时刻一致性)</b></summary>
 
 #### How it is detected
-
-Whether multiple clock sources (monotonic / boottime / uptime / kernel btime / process starttime) diverge persistently within a stable sampling window.
-
+Whether the time readings returned by multiple time-reading paths on the device contradict each other over the same stable observation window — that is, whether the differences between those readings persist and fail to converge over time.
 #### How to fix it
 
 Turn off speed hacking, time hooks and virtual containers, restore the system's automatic date and time, then reboot; if it keeps hitting, investigate clock-related kernel modules.
@@ -1180,9 +1064,7 @@ Turn off speed hacking, time hooks and virtual containers, restore the system's 
 <details><summary><b>CPU / GPU / platform three-way validation (CPU/GPU/Platform三向验证) / CPU + GPU cross-validation (CPU+GPU交叉验证) / Hardware cross-validation report (硬件交叉验证报告) / Chip identity recognition (芯片身份识别) / CPU feature verification (CPU特性校验) / sysfs cross-validation (sysfs交叉验证) / Direct Vulkan physical GPU enumeration (Vulkan物理GPU直枚举) / GPU driver verification (GPU Driver验证)</b></summary>
 
 #### How it is detected
-
-Whether the hardware identities from `cpuinfo`, system properties, driver nodes, Vulkan physical devices, sysfs, CPU topology and device nodes contradict each other (including ISO source, frequency table, core count, SoC serial number).
-
+Checks whether the hardware identity evidence obtained from multiple read paths at the preload stage, system property sources, driver nodes, device information reported by the graphics interface, CPU topology and device nodes contradicts itself.
 #### How to fix it
 
 Disable device-spoofing, KPM file overwriting and hardware-spoofing modules, and restore the official kernel, drivers and system properties.
@@ -1196,9 +1078,7 @@ Different device models with the same SoC may have different frequency tables; M
 <details><summary><b>CPU frequency (CPU频率) / CPU topology (CPU拓扑) / Total memory check (内存总量检测) / Storage space check (存储空间检测) / Temperature sensor fingerprint (温度传感器指纹) / Thermal zone sensor count (热区传感器计数) / Thermal zone temperature read (热区温度读取) / Power supply check (电源检测) / Input device check (输入设备检测)</b></summary>
 
 #### How it is detected
-
-Whether the frequency table and topology are self-consistent, whether the memory and storage capacities match the device model, whether the number / type / readings of thermal zone sensors are abnormal, and whether input devices are virtual devices.
-
+Checks whether the frequency table and the topology are consistent. Checks whether the memory and storage capacities match the device model. Checks whether the number, types and readings of thermal zone sensors are abnormal. Checks whether the input devices are virtual devices.
 #### How to fix it
 
 - Hardware spoofing / device-spoofing modules: uninstall them and restore the official properties.
