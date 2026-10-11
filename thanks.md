@@ -4,7 +4,7 @@
 
 ## 检测逻辑与问题解决思路参考
 
-- [Chunqiu-Detector-Problem-solution](https://github.com/mingzun09/Chunqiu-Detector-Problem-solution)：同类检测项解决方案文档，本文档的结构与排查思路大量参考该项目。
+- [Chunqiu-Detector-Problem-solution](https://github.com/mingzun09/Chunqiu-Detector-Problem-solution)：同类检测项解决方案文档，本文档的结构与排查思路参考该项目。
 - [Duck Detector](https://github.com/eltavine/Duck-Detector)：运行时注入与环境检测字段整理。
 - [AnyCheck](https://github.com/AnyCheck)：无障碍、开发者选项、模拟器与多开检测项参考。
 - [DirtySepolicy](https://github.com/LSPosed/DirtySepolicy)：SELinux 策略 oracle 侧信道实现参考。
