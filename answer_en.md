@@ -222,6 +222,31 @@ It is **normal** for an ordinary app to be unable to read `/sys/fs/selinux/enfor
 
 </details>
 
+<details><summary><b>KernelSU traits detected (检测到KernelSU特征)</b></summary>
+
+#### How it is detected
+
+During the application preload stage, several independent observations of this process's own runtime state are cross-checked against each other: whether different views agree under the same conditions, whether two parsing paths of the same input yield consistent results, whether the process baseline still keeps its parent-derived relationship, and whether the storage and policy views contradict each other. Any inconsistency counts as a hit.
+
+Each sub-criterion is independent, and only the ones that hit are listed. Anything that cannot be read is treated as **unknown**, never as "not found".
+
+#### How to fix it
+
+- **Hide the app**: every observation above uses this app's own runtime state, so adding Maple to a hiding list (a hiding tool such as HMA) directly blocks the observation surface.
+- **Update to the latest CI build**: update both the Root manager and the kernel / LKM to the latest CI build, then reboot.
+
+#### Related items
+
+Same family as `KernelSU check / KernelSU native interface check / KernelSU active LKM / KernelSU kernel and SELinux markers`, `Root privilege / SELinux modification detected (检测到Root权限/Selinux修改)` and `Device obtained Root / jailbreak (设备取得Root权限/免解)`; they often hit together.
+
+#### Notes
+
+- This item contains 6 sub-criteria (side-channel runtime traits, policy view consistency, policy state, runtime environment, process baseline, storage layout). **Any one of them hitting is critical.**
+- Updating to the latest CI build matters: the relevant fixes land in CI builds first and in official releases later, so comparing against an old release number will still hit.
+- Fixing this item does not make the other timing, mount or policy checks disappear; **uninstalling the manager** or **not granting this app Root** does not change this criterion.
+
+</details>
+
 <details><summary><b>KernelSU check (KernelSU检测) / KernelSU native interface check (KernelSU原生接口检测) / KernelSU active LKM (KernelSU活动LKM) / KernelSU kernel and SELinux markers (KernelSU内核与SELinux标记)</b></summary>
 
 #### How it is detected
@@ -232,6 +257,10 @@ Reads KernelSU's version / feature interfaces, the `ksu_file` policy marker, act
 
 - Update the KSU manager to the latest CI and re-patch (LKM mode) or re-integrate (GKI / Non-GKI mode).
 - Enable the hiding features inside the manager, and add Maple to the exclusion list / the app-hiding module's blacklist template.
+
+#### Related items
+
+Same-family criteria are now consolidated into `KernelSU traits detected (检测到KernelSU特征)` and are reported under that item when they hit.
 
 #### Notes
 
@@ -248,12 +277,12 @@ Aggregates KernelSU Late-load, active LKM, SELinux markers, persistent artifacts
 #### How to fix it
 
 - Jailbreak (unroot-free bootloader) mode is not recommended.
-- KSU / SukiSU: update the manager, re-patch, then enable `selinux_hide`.
+- KSU / SukiSU: update the manager and the kernel / LKM to the latest CI, re-patch, then enable `selinux_hide`.
 - Turn off Late-load, remove the Metamodule and the persistent scripts, and restore the official kernel without KernelSU integrated.
 
 #### Related items
 
-Same family as `KernelSU Late-load script environment (KernelSU Late-load脚本环境)`, `KernelSU jailbreak persistent artifacts (KernelSU越狱持久化工件)`, `KernelSU Metamodule mount (KernelSU Metamodule挂载)`, `Magica boot transaction window (Magica启动事务窗口)`, `Magica transient process (Magica瞬时进程)` and `Jailbreak model Prop cross-check (免解机型Prop交叉检测)`.
+Same family as `KernelSU Late-load script environment (KernelSU Late-load脚本环境)`, `KernelSU jailbreak persistent artifacts (KernelSU越狱持久化工件)`, `KernelSU Metamodule mount (KernelSU Metamodule挂载)`, `Magica boot transaction window (Magica启动事务窗口)`, `Magica transient process (Magica瞬时进程)` and `Jailbreak model Prop cross-check (免解机型Prop交叉检测)`; the jailbreak load-environment criteria have been merged into `KernelSU traits detected (检测到KernelSU特征)`.
 
 </details>
 
@@ -266,6 +295,10 @@ On the native side it scans jailbreak script locations, `late-load` / `--magica`
 #### How to fix it
 
 Turn off Late-load / jailbreak mode, delete the corresponding leftovers and boot scripts under `/data/adb`, uninstall the Metamodule and the Magica components, restore the official kernel and boot image, then reboot.
+
+#### Related items
+
+The jailbreak load-environment and storage-log criteria have been merged into `KernelSU traits detected (检测到KernelSU特征)` and are reported under that item when they hit.
 
 #### Notes
 
