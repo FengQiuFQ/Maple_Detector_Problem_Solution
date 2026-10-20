@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 1.6.5) — English
+# Maple Detector Problem Solution (for version 1.9.9) — English
 
-> Compiled by: Maple | Last updated: 2026-10 | Verified version: 1.6.5 (total checks: Daily 138 / Game 134 / Ultra Daily 236 / Ultra Game 330; 137 / 133 / 233 / 326 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-10 | Verified version: 1.9.9 (total checks: Daily 172 / Game 162 / Ultra Daily 305 / Ultra Game 384; 170 / 160 / 302 / 380 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -379,6 +379,41 @@ The key / attestation state does not change within one boot; repeated scans in t
 
 </details>
 
+<details><summary><b>TEE attestation unavailable (damaged / spoofed) (TEE证明不可用（损坏/伪装）)</b></summary>
+
+#### How it is detected
+Checks whether a hardware attestation chain can be obtained and parsed in this run: an empty chain, a missing attestation extension, a KeyDescription parse failure, or a timeout while waiting for the primary attestation all count as a hit. This item answers "is the attestation channel available", while "certificate chain signature verification" answers whether the signatures inside the chain are valid.
+#### How to fix it
+
+- Reboot, wait about 20 seconds, then retest; a single timeout can happen while KeyMint is busy right after boot.
+- Keybox-module users: update the module and verify keybox, target list, security patch and boot hash, then reboot and retest.
+- If it still hits with no module: restore the official firmware and trusted boot chain; a genuine hardware / firmware failure can only be repaired by the vendor.
+
+#### Related items
+
+Same family as `TEE key validity check (TEE密钥有效性检测)`, `Android Key Attestation availability (Android Key Attestation可用性)` and `Certificate chain signature verification (证书链逐级验签)`.
+
+#### Notes
+
+This item only means "no attestation was obtained or parsed in this run"; it does not by itself prove the device has been modified. If the other attestation items are normal in the same scan, investigate timeout / compatibility first.
+
+</details>
+
+<details><summary><b>Device lock state untrusted (设备锁定状态不可信)</b></summary>
+
+#### How it is detected
+Checks the BootLoaderStatus value range in the locally rebuilt payload: `-1` (attestation channel unavailable / unparsable) is treated as unevaluated and hidden; only a real out-of-range value (outside 0..3) is a hit.
+#### How to fix it
+
+- Reboot and retest first; if the attestation channel is normal but this item still appears, check whether a custom ROM / property module writes an invalid boot state.
+- Keybox / property-module users: restore the original BootLoaderStatus and do not write out-of-range values other than `-1`.
+
+#### Notes
+
+`-1` is the collection marker for "attestation unavailable", not "device unlocked"; this item no longer shows "device lock state untrusted" because of `-1`.
+
+</details>
+
 <details><summary><b>Android Key Attestation availability (Android Key Attestation可用性) / Attestation chain structure consistency (Attestation链结构一致性) / Attestation chain root and implementation level (证明链根与实现级别) / Key binding and random challenge (密钥绑定与随机挑战)</b></summary>
 
 #### How it is detected
@@ -488,11 +523,11 @@ This item often hits together with `TEE key validity check (TEE密钥有效性�
 <details><summary><b>Widevine device ID read (Widevine设备ID读取) / Widevine vs TEE cross-validation (Widevine与TEE交叉验证) / StrongBox capability declaration (StrongBox能力声明) / Knox Warranty check (Knox Warranty检测)</b></summary>
 
 #### How it is detected
-Checks whether the device unique identifier, security level and system identity information declared by the device's cryptographic module are consistent with the facts reported by the hardware trust attestation, and whether the system declares a separate hardware security element.
+Checks whether the device unique identifier, security level and system identity information declared by the device's cryptographic module are consistent with the facts reported by the hardware trust attestation, and whether the system declares a separate hardware security element. StrongBox is read-only capability declaration: no key is generated during the scan, so it does not consume KeyMint and is never judged abnormal solely because generation is unavailable.
 #### How to fix it
 
 - Restore the official DRM, TEE and complete firmware.
-- If StrongBox is declared but the result contradicts it: update the TEE-related module, or restore the official KeyMint.
+- StrongBox is only a capability declaration, not a Root / tampering conclusion; if another TEE item is abnormal, handle that item instead.
 - The Knox warranty bit is a historical e-fuse state and is **usually irreversible**.
 
 #### Notes
@@ -600,7 +635,7 @@ A resident `frida-server` triggers several items at once; if only a debug port i
 <details><summary><b>Xposed / LSPosed check (Xposed/LSPosed检测) / Xposed class loading check (Xposed Class加载检测) / XposedBridge field check (XposedBridge字段检测) / LSPosed class loading check (LSPosed Class加载检测) / LSPosed scope check (LSPosed作用域检测) / LSPosed data directory (LSPosed数据目录) / LSPosed runtime leftovers (LSPosed运行时残留) / OAT / ODEX artifact check (OAT/ODEX工件检测) / Xposed module metadata scan (Xposed模块元数据扫描)</b></summary>
 
 #### How it is detected
-Checks for injection-framework characteristics: whether framework-specific injected classes and data fields are present, whether the call stack still carries the framework's call chain, and whether the loader relationships exposed during the preload stage and the metadata of installed modules point to the same framework. It then checks whether references to the module mechanism remain in the process space, and whether the process baseline, the program mapping table and the storage view agree.
+Checks for injection-framework characteristics: whether framework-specific injected classes and data fields are present, whether the call stack still carries the framework's call chain, and whether the loader relationships exposed during the preload stage and the metadata of installed modules point to the same framework. It then checks whether references to the module mechanism remain in the process space, and whether the process baseline, the program mapping table and the storage view agree. Runtime leftovers only match explicit module / package names (`zygisk_lsposed`, `org.lsposed`, `liblspd`, `lspd`, `xposed`, `edxposed`, `riru`, etc.); for `/data/app/~~...` random hash directories only the package name or leaf module name is matched, never the random hash or Maple's own `base.apk`.
 #### How to fix it
 
 - Remove Maple from the LSPosed / Xposed scope, disable the related modules and reboot.
