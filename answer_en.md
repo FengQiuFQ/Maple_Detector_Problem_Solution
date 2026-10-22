@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 2.1.1) — English
+# Maple Detector Problem Solution (for version 2.1.2) — English
 
-> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.1 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.2 (total checks: Daily 157 / Game 148 / Ultra Daily 292 / Ultra Game 372; 155 / 146 / 289 / 368 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -63,7 +63,7 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ## Table of contents
 
-- [2.1.1 changes](#211-changes)
+- [2.1.2 changes](#212-changes)
 - [Prologue](#prologue)
 - [Terminology](#terminology)
 - [1. Root privileges and SELinux checks](#1-root-privileges-and-selinux-checks)
@@ -79,18 +79,37 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ---
 
-## 2.1.1 changes
+## 2.1.2 changes
+
+<details><summary><b>2.1.2 patch: three items withdrawn, one criterion demoted to not-evaluated</b></summary>
+
+#### Items withdrawn
+
+- **User app holding a system-level permission**: an application cannot distinguish "OEM-preinstalled and granted by the system" from "granted by the user", so the item produced steady false positives on OEM devices and was removed.
+- **System-partition APK without the system flag**: packages in preinstalled data-app directories are registered as ordinary apps by design, which is indistinguishable from "the system flag was stripped"; the item was removed.
+- **APK mtime does not match install time**: the APK mtime comes from image build and installer write, so the two timestamps have different origins by nature; the item was removed.
+
+#### Criteria adjusted
+
+- **Package-list channel mismatch**: the `pm` subprocess is normally denied in the application domain, and the item previously treated "the other channel is empty" as a mismatch; when that channel is unavailable the item now reports **not evaluated** instead of a verdict.
+- **Duplicate core threads**: the verdict set is narrowed to runtime singleton threads (`main`, `Signal Catcher`, `Jit thread pool` and the daemons). `RenderThread` is created per rendering context, so a duplicate only leaves an informational note.
+
+#### Notes
+
+- Total checks: Daily 157 / Game 148 / Ultra Daily **292** / Ultra Game **372**; 155 / 146 / 289 / 368 with package-name detection disabled.
+
+</details>
 
 <details><summary><b>2.1.1 patch: two false-positive fixes</b></summary>
 
 #### Criteria adjusted
 
-- **System-partition APK without the system flag**: APKs inside preinstalled data-app directories (`/product/data-app/`, `/system/data-app/`, `/vendor/data-app/` and vendors' variants) are installed as ordinary apps by design and never carry the system flag, so those directories are excluded from the check. On Xiaomi / HyperOS this item previously hit dozens of packages — a structural false positive.
+- **System-partition APK without the system flag**: APKs inside preinstalled data-app directories (`/product/data-app/`, `/system/data-app/`, `/vendor/data-app/` and vendors' variants) are installed as ordinary apps by design and never carry the system flag, so those directories are excluded from the check. On Xiaomi / HyperOS this item previously hit dozens of packages — a structural false positive. (The item itself was withdrawn in 2.1.2.)
 - **Duplicate core threads**: the verdict set is narrowed to runtime singleton threads (`main`, `Signal Catcher`, `Jit thread pool` and the daemons). `RenderThread` is created per rendering context — video preview, `SurfaceView` and an independent renderer each carry one — so a duplicate only leaves an informational note and no longer counts as a hit.
 
 #### Notes
 
-- Total check counts are unchanged (157 / 148 / 295 / 375); this build only narrows criteria, adding and removing no items.
+- Total check counts were unchanged in that build; it only narrowed criteria.
 
 </details>
 
