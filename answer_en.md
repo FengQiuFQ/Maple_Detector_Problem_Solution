@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 1.9.9) — English
+# Maple Detector Problem Solution (for version 2.1.0) — English
 
-> Compiled by: Maple | Last updated: 2026-10 | Verified version: 1.9.9 (total checks: Daily 172 / Game 162 / Ultra Daily 305 / Ultra Game 384; 170 / 160 / 302 / 380 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.0 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -63,6 +63,7 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ## Table of contents
 
+- [2.1.0 changes](#210-changes)
 - [Prologue](#prologue)
 - [Terminology](#terminology)
 - [1. Root privileges and SELinux checks](#1-root-privileges-and-selinux-checks)
@@ -75,6 +76,142 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 - [8. Hardware and sensor cross-validation](#8-hardware-and-sensor-cross-validation)
 - [Built-in lists and properties](#built-in-lists-and-properties)
 - [Final troubleshooting order](#final-troubleshooting-order)
+
+---
+
+## 2.1.0 changes
+
+<details><summary><b>What was added, merged or withdrawn in this version</b></summary>
+
+#### Added
+
+- **Root/SU path check (merged item)**: the per-path "Root path: …" entries and "su binary check" are merged into one card; expanding "Detection basis" shows the result for every checked location.
+- **Previous SELinux domain check**: verifies whether the domain the process migrated from lies outside the application baseline.
+- **SELinux domain audit-log side channel**: checks whether the denial records visible to this app contain a privileged domain of another process.
+- **Kernel private-interface probe**: a kernel behaviour check that depends on neither files nor strings.
+- **JIT cache injection signature**: checks whether this process's JIT cache mapping carries an injection module entry signature.
+- **Hidden framework mount source**: checks whether a hidden framework name appears as a whole mount source or mount point.
+- **Namespace creation time**: checks the establishment order of the mount view and the network view.
+
+#### Criteria adjusted
+
+- **Sideloaded third-party accessibility service**: only **enabled** services count; declared but disabled ones no longer hit.
+- **User app holding a system-level permission**: system packages, updated system packages, factory preload directories and store installs are excluded.
+- **Runtime framework classes / LSPosed class loading**: classes shipped inside Maple's own package no longer count.
+- **APK mtime does not match install time**: only applications in the self-installable location are compared.
+- **TEE and key attestation family**: the attestation generation wait is relaxed from 10 s to **20 s**, so slow TEEs are no longer truncated into "not evaluated".
+
+#### Withdrawn
+
+- **Install time earlier than build time**: the system image build time is later than the install time of most applications after every OTA, so the criterion has no discriminating power and was removed.
+
+#### Display
+
+- The "Risk reason" and "Suggested action" sections are removed from every item; only "Detection basis" and "Evidence" remain.
+
+</details>
+
+<details><summary><b>Root/SU path check (merged item) (Root/SU路径检测)</b></summary>
+
+#### How it is detected
+Every classic Root / SU location is checked for existence, object type and execute bit, and those observations are folded into three states: any confirmed executable object is a hit; only when every location is confirmed absent is a negative conclusion formed; if any location cannot be confirmed, the whole item forms no conclusion. Merging only collapses the display — the per-location results are all kept under "Detection basis", with hits prefixed by "重要:" (important).
+
+#### How to fix it
+
+- Remove unneeded su binaries and their execute bits, and clean up executable leftovers from root managers.
+- General rule: **never grant the detector root**, and keep no privilege-escalation binary with an execute bit.
+
+#### Related items
+
+`Running su process`, `Root process check` and `检测到Root权限/Selinux修改` belong to the same family and usually hit together.
+
+#### Notes
+
+- "Cannot be confirmed by the current process" only means invisible — not absent, and not a pass.
+- Generic directories are not root evidence by themselves; an unreadable one only leaves a note and never drags the item into not-evaluated.
+
+</details>
+
+<details><summary><b>Previous SELinux domain check (上一次SELinux域检测)</b></summary>
+
+#### How it is detected
+Checks whether the domain the process came from before migrating lies inside the application baseline: a zygote / init derived chain and the ordinary application domains are normal; a root-framework privileged domain is a hit; an unknown domain outside the baseline is reported as medium risk; an unreadable value is treated as **unknown**, never as "not found".
+
+#### How to fix it
+
+- A privileged domain means the process migrated back from a root domain: focus on the injection chain, disable global injection in the manager and narrow the scope of app-hiding modules.
+- An "unknown domain outside the baseline" is usually an OEM-specific domain; confirm the system build before treating it as tampering.
+
+#### Related items
+
+Same family as `SELinux上下文检测`, `检测到Root权限/Selinux修改` and `SELinux域日志侧信道`; they corroborate each other.
+
+#### Notes
+
+- **The zygote domain is a normal baseline, not evidence**: an app process is derived from the zygote process and then migrates into its app domain, so it legitimately came from the zygote domain.
+- Only the domain-type field is compared, not the whole string, so similar-looking text in the level or category never triggers.
+
+</details>
+
+<details><summary><b>SELinux domain audit-log side channel (SELinux域日志侧信道)</b></summary>
+
+#### How it is detected
+Checks whether "the denial records visible to this app" correspond to "the denials triggered by this process accessing other processes": take a log baseline, perform a round of accesses that cross domain boundaries, then read the log back and look for another process's privileged domain in the newly appeared records. A privileged domain is a hit; only ordinary domains means the channel works and no privileged domain was seen; when no such denial record is readable at all the item is **unknown**.
+
+#### How to fix it
+
+- A hit means a root-domain process exists and the system writes audit records into an app-visible buffer: clean up the root-domain process and the injection chain first.
+- To close it system-side: upgrade to a build containing the procfs audit hiding patch.
+
+#### Related items
+
+Corroborates `上一次SELinux域检测` and `检测到Root权限/Selinux修改`; it is a different channel from the side-channel criterion inside `检测到KernelSU特征`.
+
+#### Notes
+
+- **When no denial record is readable the item is "not evaluated", not a pass**: a patched system never exposes such records to applications in the first place.
+- Some hiding schemes rewrite a privileged domain into an ordinary application domain; this item cannot see that rewrite and needs other items as corroboration.
+
+</details>
+
+<details><summary><b>Kernel private-interface probe / JIT cache injection signature (内核私有接口探针 / JIT缓存注入签名)</b></summary>
+
+#### How it is detected
+Both check kernel and runtime behaviour rather than files or strings: one calls a kernel interface with a non-standard option and observes whether the caller's memory page is faulted back in — a stock kernel errors out immediately and never touches that page; the other checks whether this process's JIT cache mapping carries an injection module entry signature. The first one also runs a control measurement, and an abnormal control voids the whole measurement.
+
+#### How to fix it
+
+- Both are kernel / injection-side behavioural evidence; file-level or string-level hiding cannot evade them.
+- On a hit, revert to an unintegrated stock kernel or disable the corresponding hiding feature.
+
+#### Related items
+
+Corroborates `KernelSU检测`, `检测到Root权限/Selinux修改` and the injection family.
+
+#### Notes
+
+- If the eviction baseline is unavailable (the kernel does not honour voluntary eviction), access is denied, or the control is abnormal, the item is "not evaluated".
+- If this process has no JIT cache mapping, the item is likewise "not evaluated" and must not be read as clean.
+
+</details>
+
+<details><summary><b>Hidden framework mount source / Namespace creation time (隐藏框架挂载源 / 命名空间创建时间)</b></summary>
+
+#### How it is detected
+- Mount source: checks whether the **complete** hidden framework name appears as a mount source or mount point (no loose substring matching, so an ordinary module directory is not counted).
+- Namespace: checks the establishment order of the mount view and the network view; a mount view clearly later than the network view means the mount view was rebuilt inside the process.
+
+#### How to fix it
+
+- Mount-source hit: unmount / remove the corresponding hiding module, or switch to a scheme that does not rebuild the mount view.
+- Namespace time skew: look for modules that rebuild the mount view inside the application process.
+
+#### Notes
+
+- When the mount tables are unreadable the item is "not evaluated".
+- The namespace criterion never exceeds medium risk and always prints both timestamps for manual review.
+
+</details>
 
 ---
 
@@ -294,7 +431,7 @@ The Magica-related items are **transient**: whether they hit depends on whether 
 
 </details>
 
-<details><summary><b>su binary check (su二进制检测) / Running su process (运行中su进程) / Running Root / cheat process (运行中Root/外挂进程) / Root process check (Root进程检测) / Visible kernel cheat runtime state (可见内核外挂运行态)</b></summary>
+<details><summary><b>Root/SU path check (Root/SU路径检测, merged with the former su binary check in 2.1.0) / Running su process (运行中su进程) / Running Root / cheat process (运行中Root/外挂进程) / Root process check (Root进程检测) / Visible kernel cheat runtime state (可见内核外挂运行态)</b></summary>
 
 #### How it is detected
 Checks whether su or similar binaries are present in common paths; for visible processes it cross-checks four views of process identity and requires at least two to agree before counting as su; it also takes in whether the security context belongs to a Root domain, kernel-backfilled task names and cheat daemon characteristics.
