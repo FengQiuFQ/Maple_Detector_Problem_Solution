@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 2.1.0) — English
+# Maple Detector Problem Solution (for version 2.1.1) — English
 
-> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.0 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.1 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -63,7 +63,7 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ## Table of contents
 
-- [2.1.0 changes](#210-changes)
+- [2.1.1 changes](#211-changes)
 - [Prologue](#prologue)
 - [Terminology](#terminology)
 - [1. Root privileges and SELinux checks](#1-root-privileges-and-selinux-checks)
@@ -79,7 +79,20 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ---
 
-## 2.1.0 changes
+## 2.1.1 changes
+
+<details><summary><b>2.1.1 patch: two false-positive fixes</b></summary>
+
+#### Criteria adjusted
+
+- **System-partition APK without the system flag**: APKs inside preinstalled data-app directories (`/product/data-app/`, `/system/data-app/`, `/vendor/data-app/` and vendors' variants) are installed as ordinary apps by design and never carry the system flag, so those directories are excluded from the check. On Xiaomi / HyperOS this item previously hit dozens of packages — a structural false positive.
+- **Duplicate core threads**: the verdict set is narrowed to runtime singleton threads (`main`, `Signal Catcher`, `Jit thread pool` and the daemons). `RenderThread` is created per rendering context — video preview, `SurfaceView` and an independent renderer each carry one — so a duplicate only leaves an informational note and no longer counts as a hit.
+
+#### Notes
+
+- Total check counts are unchanged (157 / 148 / 295 / 375); this build only narrows criteria, adding and removing no items.
+
+</details>
 
 <details><summary><b>What was added, merged or withdrawn in this version</b></summary>
 
