@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 2.1.2) — English
+# Maple Detector Problem Solution (for version 2.3.0) — English
 
-> Compiled by: Maple | Last updated: 2026-10-22 | Verified version: 2.1.2 (total checks: Daily 157 / Game 148 / Ultra Daily 292 / Ultra Game 372; 155 / 146 / 289 / 368 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-11-06 | Verified version: 2.3.0 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -63,6 +63,7 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 
 ## Table of contents
 
+- [2.3.0 changes](#230-changes)
 - [2.1.2 changes](#212-changes)
 - [Prologue](#prologue)
 - [Terminology](#terminology)
@@ -78,6 +79,27 @@ Do not just send "third-party detected" or "Root detected". Without the detectio
 - [Final troubleshooting order](#final-troubleshooting-order)
 
 ---
+
+## 2.3.0 changes
+
+<details><summary><b>2.3.0: TEE spoofing module detection added</b></summary>
+
+#### Added
+
+- **TEE spoofing module detected (检测到TEE伪装模块)**: follows the key, certificate and operation behavior criteria in Detection Demo 1.7. Checks `c` and `g` are excluded as requested; the remaining 75 subchecks form one parent item.
+
+#### Display and scope
+
+- Runs only in **Ultra** mode for both system and game scans. Neither basic mode runs these checks.
+- Each "检测到：Chinese name" line under the parent item identifies a subcheck that actually hit. Subchecks without a hit, unavailable subchecks and unevaluated subchecks are omitted.
+- Normal scans require no additional configuration. A subcheck without comparable data is skipped while the other checks continue.
+
+#### Notes
+
+- The 75 subchecks count as one parent item, rather than 75 separate checks in the scan total.
+- Total checks: Daily 157 / Game 148 / Ultra Daily **295** / Ultra Game **375**; 155 / 146 / 292 / 371 with package-name detection disabled.
+
+</details>
 
 ## 2.1.2 changes
 
@@ -527,6 +549,32 @@ This item is strong evidence, but it depends on kernel implementation details an
 ---
 
 ## 2. TEE and key attestation checks
+
+<details><summary><b>TEE spoofing module detected (检测到TEE伪装模块, added in 2.3.0, Ultra only)</b></summary>
+
+#### How it is detected
+
+Checks consistency between hardware attestation, key authorizations, certificate reads and writes, and actual key operations. It covers certificate and public-key binding, attestation challenges and application identity, signatures and encryption, key usage and validity limits, concurrent issuance, behavior after an operation finishes or is aborted, and read/write/delete views of keys with the same alias. Following Detection Demo 1.7, there are 75 subchecks after excluding `c` and `g`, all displayed under this parent item.
+
+#### How to fix it
+
+- Expand the item and identify the specific "检测到：Chinese name" finding. Adjust one module at a time, reboot and retest.
+- Disable TEE / KeyMint / Keystore simulation, certificate replacement and key operation interception modules one at a time, and check whether the finding disappears.
+- If you use a keybox module, check its compatibility with the current system and firmware. Correct patch dates or certificate configuration alone may still leave differences in key operation behavior.
+- If the finding persists with those modules disabled, restore matching official firmware, Keystore / KeyMint and the trusted boot chain. Submit the specific Chinese subcheck name and device environment for review if it persists.
+
+#### Related items
+
+Same family as `TEE key validity check (TEE密钥有效性检测)`, `TEE attestation unavailable (TEE证明不可用（损坏/伪装）)` and `TEE authorization tag cross-check (TEE授权标签对照)`. This item checks behavioral contradictions in obtained results; the existing TEE availability items handle missing or unparseable primary attestation.
+
+#### Notes
+
+- Runs only in **Ultra** mode for both system and game scans; basic mode does not run it.
+- Details list only Chinese names of subchecks that actually hit. Subchecks without a hit, unavailable subchecks and unevaluated subchecks are hidden.
+- Normal scans need no additional configuration or manually prepared baseline. Subchecks requiring original reference data are skipped when that data is absent, while the other checks continue.
+- The original Demo also displays unavailable subchecks as "passed", so all-pass UI results do not establish that every criterion was evaluated.
+
+</details>
 
 <details><summary><b>TEE key validity check (TEE密钥有效性检测) (new in 1.3.0)</b></summary>
 
