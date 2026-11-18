@@ -635,7 +635,7 @@ Checks the BootLoaderStatus value range in the locally rebuilt payload: `-1` (at
 Checks whether the device Soter security service is reachable, whether the security key can be prepared, whether a secure signing session can be established, and whether the public key, device identity and signature returned by the security key are abnormal. An unavailable service, a failed key preparation or signing session, an all-zero signature, a known fixed public key, a remote device identity, a key owner mismatch or an abnormal counter all count as a hit.
 #### How to fix it
 
-- Flash the [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) module, reboot the device and scan again.
+- Flash the [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) module, install it, configure the key (keybox or the key file described on the release page) in the module settings, then reboot and scan again.
 - If other Soter / TEE simulation or interception modules are installed, disable the conflicting modules first so that multiple modules do not take over the service at the same time.
 - Restore the official firmware and trusted boot chain, then retest; if it still hits with no module, check compatibility against the model and version notes on the module release page.
 
