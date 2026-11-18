@@ -635,7 +635,7 @@ Magica 相关条目是**瞬时**的：命中与否取决于扫描时窗口是否
 核对设备 Soter 安全服务是否可达、安全密钥能否正常准备、安全签名会话能否建立，并检查安全密钥返回的公钥、设备标识与签名结果是否异常。服务不可用、密钥准备或签名会话失败，以及返回全零签名、已知固定公钥、远端设备标识、密钥所属应用不一致、计数异常等，均会命中。
 #### 解决办法
 
-- 刷入 [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) 模块，安装后在模块配置中导入 / 配置密钥（keybox 或发布页说明的密钥文件），重启设备后重新扫描。
+- 刷入 [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) 模块，安装后在模块配置中启用「Soter 兼容」并导入 / 配置密钥；无需启用「Soter 证书链」，重启设备后重新扫描。
 - 已安装其它 Soter / TEE 模拟或拦截模块时，先停用冲突模块，避免多个模块同时接管服务。
 - 恢复官方固件与可信启动链后复测；无模块仍命中时，按模块发布页的机型与版本说明排查兼容性。
 
