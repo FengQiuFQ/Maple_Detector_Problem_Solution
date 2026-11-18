@@ -1,6 +1,6 @@
-# Maple Detector Problem Solution (for version 2.3.0) — English
+# Maple Detector Problem Solution (for version 2.6.0) — English
 
-> Compiled by: Maple | Last updated: 2026-11-06 | Verified version: 2.3.0 (total checks: Daily 157 / Game 148 / Ultra Daily 295 / Ultra Game 375; 155 / 146 / 292 / 371 with package-name detection disabled)
+> Compiled by: Maple | Last updated: 2026-11-18 | Verified version: 2.6.0 (total checks: Daily 157 / Game 148 / Ultra Daily 299 / Ultra Game 379; 155 / 146 / 296 / 375 with package-name detection disabled)
 > Credits: [Credits list](thanks.md) | For reference only; actual results vary with device / system / kernel environment.
 > Items marked with "?" are unconfirmed and are for troubleshooting reference only.
 > Document link: [github](https://github.com/FengQiuFQ/Maple_Detector_Problem_Solution/)
@@ -626,6 +626,26 @@ Checks the BootLoaderStatus value range in the locally rebuilt payload: `-1` (at
 #### Notes
 
 `-1` is the collection marker for "attestation unavailable", not "device unlocked"; this item no longer shows "device lock state untrusted" because of `-1`.
+
+</details>
+
+<details><summary><b>Soter service anomaly detected (检测到设备Soter服务异常)</b></summary>
+
+#### How it is detected
+Checks whether the device Soter security service is reachable, whether the security key can be prepared, whether a secure signing session can be established, and whether the public key, device identity and signature returned by the security key are abnormal. An unavailable service, a failed key preparation or signing session, an all-zero signature, a known fixed public key, a remote device identity, a key owner mismatch or an abnormal counter all count as a hit.
+#### How to fix it
+
+- Flash the [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) module, reboot the device and scan again.
+- If other Soter / TEE simulation or interception modules are installed, disable the conflicting modules first so that multiple modules do not take over the service at the same time.
+- Restore the official firmware and trusted boot chain, then retest; if it still hits with no module, check compatibility against the model and version notes on the module release page.
+
+#### Related items
+
+Same family as `TEE key validity check (TEE密钥有效性检测)`, `TEE attestation unavailable (TEE证明不可用（损坏/伪装）)` and `Android Key Attestation availability (Android Key Attestation可用性)`; all are consistency checks of key and attestation services.
+
+#### Notes
+
+The module is intended to restore / complete the Soter service response. Read the release notes and risk notice before flashing, and always reboot before retesting.
 
 </details>
 
