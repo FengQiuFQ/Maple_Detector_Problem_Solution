@@ -557,6 +557,7 @@ Magica 相关条目是**瞬时**的：命中与否取决于扫描时窗口是否
 
 #### 解决办法
 
+- 安装 [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) 模块，在模块配置中导入 / 配置 Keybox，并填写需要生效的包名（target 列表）。
 - 先展开本项，按「检测到：异常名称」确认具体问题，一次只调整一个模块并重启复测。
 - 逐个停用 TEE / KeyMint / Keystore 模拟、证书替换与密钥操作拦截模块，确认命中是否随之消失。
 - 使用密钥模块时，确认模块与当前系统、固件版本匹配，调整配置后重启复测。

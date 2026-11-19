@@ -557,6 +557,7 @@ Checks hardware attestation, certificates and key use for abnormalities associat
 
 #### How to fix it
 
+- Install the [TEESimulator-MapleSU](https://github.com/FengQiuFQ/TEESimulator-MapleSU/releases/) module, import / configure the Keybox in the module settings, and fill in the target package names.
 - Expand the item and identify the specific "检测到：finding name" issue. Adjust one module at a time, reboot and retest.
 - Disable TEE / KeyMint / Keystore simulation, certificate replacement and key operation interception modules one at a time, and check whether the finding disappears.
 - If you use a keybox module, confirm that it matches the current system and firmware version. Reboot and retest after changing its configuration.
